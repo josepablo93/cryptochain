@@ -42,7 +42,7 @@ app.post('/api/transact', (req, res) => {
     } else {
       transaction = wallet.createTransaction({ recipient, amount });
     }
-    
+
   } catch (error) {
     return res.status(400).json({ type: 'error', message: error.message });
   }
@@ -51,6 +51,10 @@ app.post('/api/transact', (req, res) => {
   console.log('transactionPool', transactionPool);
 
   res.json({ type: 'success', transaction });
+})
+
+app.get('/api/transaction-pool-map', (req, res) => {
+  res.json(transactionPool.transactionMap);
 })
 
 const syncChains = () => {
