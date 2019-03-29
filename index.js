@@ -12,9 +12,11 @@ const isDevelopment = process.env.ENV === 'development';
 
 const REDIS_URL = isDevelopment ?
   'redis://127.0.0.1:6379' :
-  'redis://127.0.0.1:6379' // TODO: Change for production
+  'redis://127.0.0.1:6379' // TODO: Change for production redis node
 const DEFAULT_PORT = 3000;
-const ROOT_NODE_ADDRESS = `http://localhost:${DEFAULT_PORT}`;
+const ROOT_NODE_ADDRESS = isDevelopment ?
+  `http://localhost:${DEFAULT_PORT}` :
+  ''; // TODO: point to master node on production
 
 const app = express();
 const blockchain = new Blockchain();
@@ -30,6 +32,25 @@ app.use(express.static(path.join(__dirname, 'client/dist')));
 app.get('/api/blocks', (req, res) => {
   res.json(blockchain.chain);
 
+});
+
+app.get('/api/blocks/length', (req, res) => {
+  res.json(blockchain.chain.length);
+});
+
+app.get('/api/blocks/:id', (req, res) => {
+  const { id } = req.params;
+  const { length } = blockchain.chain
+
+  const blocksReversed = blockchain.chain.slice().reverse();
+
+  let startIndex = (id - 1) * 5;
+  let endIndex = (id * 5);
+
+  startIndex = startIndex < length ? startIndex : length;
+  endIndex = endIndex < length ? endIndex : length;
+
+  res.json(blocksReversed.slice(startIndex, endIndex));
 });
 
 app.post('/api/mine', (req, res) => {
@@ -65,17 +86,17 @@ app.post('/api/transact', (req, res) => {
   pubsub.broadcastTransaction(transaction);
 
   res.json({ type: 'success', transaction });
-})
+});
 
 app.get('/api/transaction-pool-map', (req, res) => {
   res.json(transactionPool.transactionMap);
-})
+});
 
 app.get('/api/mine-transactions', (req, res) => {
   transactionMiner.mineTransactions();
 
   res.redirect('/api/blocks');
-})
+});
 
 app.get('/api/wallet-info', (req, res) => {
   const address = wallet.publicKey
@@ -83,7 +104,19 @@ app.get('/api/wallet-info', (req, res) => {
     address,
     balance: Wallet.calculateBalance({ chain: blockchain.chain, address })
   })
-})
+});
+
+app.get('/api/known-addresses', (req, res) => {
+  const addressMap = {};
+  for (let block of blockchain.chain) {
+    for (let transaction of block.data) {
+      const recipient = Object.keys(transaction.outputMap);
+      recipient.forEach(recipient => addressMap[recipient] = recipient);
+    }
+  }
+
+  res.json(Object.keys(addressMap));
+});
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, './client/dist/index.html'));
@@ -136,7 +169,7 @@ if (isDevelopment) {
     wallet: walletBar, recipient: wallet.publicKey, amount: 15
   })
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     if (i % 3 === 0) {
       walletAction();
       walletFooAction();
