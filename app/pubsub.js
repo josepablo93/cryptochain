@@ -7,11 +7,11 @@ const CHANNELS = {
 }
 
 class PubSub {
-  constructor({ blockchain, transactionPool }) {
+  constructor({ blockchain, transactionPool, redisUrl }) {
     this.blockchain = blockchain;
     this.transactionPool = transactionPool;
-    this.publisher = redis.createClient();
-    this.subscriber = redis.createClient();
+    this.publisher = redis.createClient(redisUrl);
+    this.subscriber = redis.createClient(redisUrl);
 
     this.subscribeToChannels();
     this.subscriber.on('message', (channel, message) => this.handleMessage(channel, message));
@@ -27,7 +27,7 @@ class PubSub {
         this.blockchain.replaceChain(parsedMessage, true, () => {
           this.transactionPool.clearBlockchainTransactions({
             chain: parsedMessage,
-          });1
+          }); 1
         });
         break;
       case CHANNELS.TRANSACTION:
